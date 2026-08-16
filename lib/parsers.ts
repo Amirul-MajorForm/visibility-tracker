@@ -12,6 +12,20 @@ function pick(item: Record<string, unknown>, ...keys: string[]): unknown {
   return undefined
 }
 
+export function findItemByDomain(items: unknown[], domain: string): unknown[] {
+  const needle = domain.toLowerCase().replace(/^www\./, '')
+  return items.filter(item => {
+    const i = item as Record<string, unknown>
+    const candidates = [
+      String(i.domain || ''),
+      String(i.url || ''),
+      String(i.target || ''),
+      String(i.name || ''),
+    ]
+    return candidates.some(c => c.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').startsWith(needle))
+  })
+}
+
 export function parseSEOData(items: unknown[], technical: { label: string; status: 'ok' | 'fail' }[]): SEOData {
   const item = (Array.isArray(items) && items[0]) ? items[0] as Record<string, unknown> : {}
 

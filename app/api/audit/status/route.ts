@@ -9,10 +9,13 @@ export async function GET(req: NextRequest) {
   const state = runs.get(id)
   if (!state) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const debug = req.nextUrl.searchParams.get('debug') === 'true'
+
   return NextResponse.json({
     phase: state.status.phase,
     progress: state.status.progress,
     error: state.status.error,
     result: state.status.phase === 'complete' ? state.result : undefined,
+    ...(debug ? { debugRaw: state.debugRaw } : {}),
   })
 }

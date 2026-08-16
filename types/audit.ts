@@ -109,4 +109,6 @@ export interface RunState {
   competitors: string[]
   status: AuditStatus
   result?: AuditResult
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  debugRaw?: Record<string, any>
 }

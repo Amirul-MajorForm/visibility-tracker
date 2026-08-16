@@ -66,12 +66,14 @@ export async function POST(req: NextRequest) {
     if (!state) return
 
     try {
-      // Start SEO + AI runs in parallel
-      // Note: AI actor input uses only core fields — queries/language/perception are optional
-      const [seoRunId, aiRunId, ...competitorRunIds] = await Promise.all([
+      // Batch ALL domains (target + competitors) into a single SEO run so each domain's data
+      // is fetched once and can be matched by domain field in the response array.
+      const allDomains = [domain, ...resolvedCompetitorDomains]
+
+      const [seoRunId, aiRunId] = await Promise.all([
         startApifyRun('parseforge~ahrefs-tools-scraper', {
           searchType: 'domain',
-          domains: [domain],
+          domains: allDomains,
         }),
         startApifyRun('doesaiknow~ai-brand-visibility-tracker-chatgpt-perplexity-gemini', {
           brand,
@@ -79,51 +81,75 @@ export async function POST(req: NextRequest) {
           category,
           competitors: competitors,
         }),
-        ...resolvedCompetitorDomains.map((compDomain: string) =>
-          startApifyRun('parseforge~ahrefs-tools-scraper', {
-            searchType: 'domain',
-            domains: [compDomain],
-          })
-        ),
       ])
 
       state.seoRunId = seoRunId
       state.aiRunId = aiRunId
-      state.competitorRunIds = competitorRunIds
+      state.competitorRunIds = []
       state.status = { phase: 'seo', progress: 10 }
       runs.set(auditId, state)
 
       const { pollApifyRun } = await import('@/lib/apify')
-      const { parseSEOData, parseAIData, parseBenchmark, parseCompetitorSEO, runTechnicalChecks } = await import('@/lib/parsers')
+      const { parseSEOData, parseAIData, parseBenchmark, parseCompetitorSEO, runTechnicalChecks, findItemByDomain } = await import('@/lib/parsers')
 
       // Poll SEO (120s) and AI (900s) in parallel
-      const [seoItems, techChecks, aiItems, ...competitorSeoItems] = await Promise.allSettled([
+      const [seoResult, techChecks, aiItems] = await Promise.allSettled([
         pollApifyRun(seoRunId, 120000),
         runTechnicalChecks(url),
         pollApifyRun(aiRunId, 900000),
-        ...competitorRunIds.map((runId: string) => pollApifyRun(runId, 120000)),
       ])
 
       state.status = { phase: 'ai', progress: 60 }
+
+      const allSeoItems = seoResult.status === 'fulfilled' ? seoResult.value : []
+
+      // Log raw output for debugging
+      console.log('[SEO] run id:', seoRunId)
+      console.log('[SEO] raw items count:', allSeoItems.length)
+      if (allSeoItems.length > 0) {
+        const first = allSeoItems[0] as Record<string, unknown>
+        console.log('[SEO] item[0] keys:', Object.keys(first).join(', '))
+        console.log('[SEO] item[0] domain fields:', {
+          domain: first.domain, url: first.url, target: first.target,
+        })
+        console.log('[SEO] item[0] metrics:', {
+          dr: first.domainRating ?? first.domain_rating ?? first.dr,
+          backlinks: first.backlinks ?? first.total_backlinks,
+          keywords: first.organicKeywords ?? first.organic_keywords ?? first.keywords,
+        })
+      }
+
+      state.debugRaw = {
+        seoRunId,
+        aiRunId,
+        seoItemCount: allSeoItems.length,
+        seoItem0: allSeoItems[0] ?? null,
+      }
       runs.set(auditId, state)
 
       const technical = techChecks.status === 'fulfilled' ? techChecks.value : []
-      const seoData = parseSEOData(
-        seoItems.status === 'fulfilled' ? seoItems.value : [],
-        technical
-      )
+      const targetItems = findItemByDomain(allSeoItems, domain)
+      console.log('[SEO] target domain items for', domain, ':', targetItems.length)
+      const seoData = parseSEOData(targetItems.length > 0 ? targetItems : allSeoItems, technical)
 
       if (aiItems.status === 'rejected') throw new Error('AI actor failed: ' + aiItems.reason)
+      console.log('[AI] raw items count:', aiItems.value?.length ?? 0)
+      if (aiItems.value?.length > 0) {
+        const ai0 = aiItems.value[0] as Record<string, unknown>
+        console.log('[AI] item[0] keys:', Object.keys(ai0).join(', '))
+      }
       const aiData = parseAIData(aiItems.value, brand)
       const benchmark = parseBenchmark(aiItems.value, brand, domain, competitors)
 
       const parsedCompetitors = competitors.map((comp: string, i: number) => {
-        const items = competitorSeoItems[i]?.status === 'fulfilled' ? (competitorSeoItems[i] as PromiseFulfilledResult<unknown[]>).value : []
+        const compDomain = resolvedCompetitorDomains[i]
+        const compItems = findItemByDomain(allSeoItems, compDomain)
+        console.log('[SEO] competitor', comp, '(', compDomain, ') items:', compItems.length)
         const compAI = benchmark.find(b => b.name.toLowerCase() === comp.toLowerCase())
         return parseCompetitorSEO(
-          items,
+          compItems.length > 0 ? compItems : [],
           comp,
-          resolvedCompetitorDomains[i],
+          compDomain,
           compAI?.visibility || 0,
           compAI ? String(compAI.firstMentionShare) + '%' : '0%'
         )
