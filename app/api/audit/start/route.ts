@@ -70,11 +70,11 @@ export async function POST(req: NextRequest) {
     try {
       // Start SEO + AI runs in parallel
       const [seoRunId, aiRunId, ...competitorRunIds] = await Promise.all([
-        startApifyRun('parseforge/ahrefs-tools-scraper', {
+        startApifyRun('parseforge~ahrefs-tools-scraper', {
           searchType: 'domain',
           domains: [domain],
         }),
-        startApifyRun('doesaiknow/ai-brand-visibility-tracker-chatgpt-perplexity-gemini', {
+        startApifyRun('doesaiknow~ai-brand-visibility-tracker-chatgpt-perplexity-gemini', {
           brand,
           brandUrl: domain,
           category,
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
           includePerception: true,
         }),
         ...competitors.map((comp: string) =>
-          startApifyRun('parseforge/ahrefs-tools-scraper', {
+          startApifyRun('parseforge~ahrefs-tools-scraper', {
             searchType: 'domain',
             domains: [comp.toLowerCase().replace(/\s+/g, '') + '.com'],
           })
