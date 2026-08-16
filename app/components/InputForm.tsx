@@ -17,7 +17,8 @@ export default function InputForm({ onSubmit, loading }: InputFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const competitors = [comp1, comp2].filter(Boolean)
-    onSubmit({ brand, category, url, competitors })
+    const normalised = url.startsWith('http') ? url : `https://${url}`
+    onSubmit({ brand, category, url: normalised, competitors })
   }
 
   return (
@@ -69,8 +70,7 @@ export default function InputForm({ onSubmit, loading }: InputFormProps) {
           <input
             value={url}
             onChange={e => setUrl(e.target.value)}
-            placeholder="e.g. https://oatside.com"
-            type="url"
+            placeholder="e.g. oatside.com or https://oatside.com"
             required
           />
         </div>
