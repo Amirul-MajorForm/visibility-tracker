@@ -1,0 +1,151 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg: #0A0A0A;
+  --surface: #111111;
+  --surface-raised: #1A1A1A;
+  --border: #2A2A2A;
+  --accent: #C8F54A;
+  --accent-muted: #8FAD2E;
+  --text-primary: #F0F0F0;
+  --text-muted: #888888;
+  --positive: #4ADE80;
+  --warning: #FBBF24;
+  --danger: #F87171;
+  --table-alt: #161616;
+}
+
+:root[data-theme="light"] {
+  --bg: #F5F5F2;
+  --surface: #FFFFFF;
+  --surface-raised: #F0F0EC;
+  --border: #E2E2DC;
+  --accent: #6B8E00;
+  --accent-muted: #4d6600;
+  --text-primary: #111111;
+  --text-muted: #777777;
+  --table-alt: #F8F8F5;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F5F5F2;
+    --surface: #FFFFFF;
+    --surface-raised: #F0F0EC;
+    --border: #E2E2DC;
+    --accent: #6B8E00;
+    --accent-muted: #4d6600;
+    --text-primary: #111111;
+    --text-muted: #777777;
+    --table-alt: #F8F8F5;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.kpi-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.section-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+input, select, textarea {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 10px 12px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--table-alt);
+}
+
+tbody tr:hover {
+  background: #222222;
+}
+
+:root[data-theme="light"] tbody tr:hover {
+  background: #E8E8E4;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) tbody tr:hover {
+    background: #E8E8E4;
+  }
+}
+
+tbody td {
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.scrollable-table {
+  overflow-x: auto;
+}
