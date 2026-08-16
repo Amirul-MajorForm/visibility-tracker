@@ -23,13 +23,13 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('seo')
   const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = async (data: { brand: string; category: string; url: string; competitors: string[] }) => {
+  const handleSubmit = async (data: { brand: string; category: string; url: string; competitors: string[]; competitorDomains: string[] }) => {
     setSubmitting(true)
     try {
       const res = await fetch('/api/audit/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(data),  // includes competitorDomains
       })
       const { auditId } = await res.json()
       setAppState('loading')
@@ -95,7 +95,7 @@ export default function Home() {
             hasCompetitors={auditResult.competitors.length > 0}
           />
           <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px' }}>
-            {activeTab === 'seo' && <SeoTab seo={auditResult.seo} />}
+            {activeTab === 'seo' && <SeoTab seo={auditResult.seo} url={auditResult.url} />}
             {activeTab === 'ai' && <AiTab ai={auditResult.ai} />}
             {activeTab === 'benchmark' && <BenchmarkTab benchmark={auditResult.benchmark} brand={auditResult.brand} />}
             {activeTab === 'competitors' && auditResult.competitors.length > 0 && (

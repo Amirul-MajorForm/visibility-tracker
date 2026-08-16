@@ -3,7 +3,7 @@ import Kpi from '@/app/components/ui/Kpi'
 import StatusRow from '@/app/components/ui/StatusRow'
 import Label from '@/app/components/ui/Label'
 
-export default function SeoTab({ seo }: { seo: SEOData }) {
+export default function SeoTab({ seo, url }: { seo: SEOData; url: string }) {
   const passCount = seo.technical.filter(t => t.status === 'ok').length
 
   return (
@@ -66,6 +66,50 @@ export default function SeoTab({ seo }: { seo: SEOData }) {
             }}>
               {passCount}/{seo.technical.length} passing
             </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+            <a
+              href={`https://pagespeed.web.dev/analysis?url=${encodeURIComponent(url)}`}
+              target="_blank"
+              rel="noopener"
+              style={{
+                fontSize: '0.75rem',
+                fontFamily: 'Space Grotesk',
+                fontWeight: 600,
+                padding: '5px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+                textDecoration: 'none',
+                background: 'var(--surface-raised)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              ↗ PageSpeed Insights
+            </a>
+            <a
+              href={`https://search.google.com/search-console`}
+              target="_blank"
+              rel="noopener"
+              style={{
+                fontSize: '0.75rem',
+                fontFamily: 'Space Grotesk',
+                fontWeight: 600,
+                padding: '5px 12px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+                textDecoration: 'none',
+                background: 'var(--surface-raised)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              ↗ Search Console
+            </a>
           </div>
           <div>
             {seo.technical.map((item, i) => (

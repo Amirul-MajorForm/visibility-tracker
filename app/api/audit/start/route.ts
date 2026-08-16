@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { RunState } from '@/types/audit'
 import { extractDomain } from '@/lib/parsers'
 import { startApifyRun } from '@/lib/apify'
-import { generateQueries } from '@/lib/queries'
 import { getMockAuditResult } from '@/lib/mockData'
 
 // In-memory store for audit runs
@@ -14,7 +13,7 @@ export function getRunsStore() {
 }
 
 export async function POST(req: NextRequest) {
-  const { brand, category, url, competitors } = await req.json()
+  const { brand, category, url, competitors, competitorDomains } = await req.json()
 
   if (!brand || !category || !url) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -23,6 +22,12 @@ export async function POST(req: NextRequest) {
   const auditId = uuidv4()
   const domain = extractDomain(url)
   const USE_MOCK = process.env.USE_MOCK === 'true' || !process.env.APIFY_TOKEN
+
+  // Resolve competitor domains: use explicit domain if provided, fall back to guessing from name
+  const resolvedCompetitorDomains: string[] = (competitors as string[]).map((comp: string, i: number) => {
+    if (competitorDomains?.[i]) return competitorDomains[i]
+    return comp.toLowerCase().replace(/\s+/g, '') + '.com'
+  })
 
   const initialState: RunState = {
     seoRunId: null,
@@ -38,27 +43,20 @@ export async function POST(req: NextRequest) {
   runs.set(auditId, initialState)
 
   if (USE_MOCK) {
-    // Return mock data after a brief delay for demo purposes
     setTimeout(async () => {
       const state = runs.get(auditId)
       if (!state) return
-
       state.status = { phase: 'seo', progress: 50 }
       runs.set(auditId, state)
-
       await new Promise(r => setTimeout(r, 2000))
-
       state.status = { phase: 'ai', progress: 60 }
       runs.set(auditId, state)
-
       await new Promise(r => setTimeout(r, 3000))
-
       const result = getMockAuditResult(brand, category, url, competitors)
       state.status = { phase: 'complete', progress: 100 }
       state.result = result
       runs.set(auditId, state)
     }, 0)
-
     return NextResponse.json({ auditId })
   }
 
@@ -69,6 +67,7 @@ export async function POST(req: NextRequest) {
 
     try {
       // Start SEO + AI runs in parallel
+      // Note: AI actor input uses only core fields — queries/language/perception are optional
       const [seoRunId, aiRunId, ...competitorRunIds] = await Promise.all([
         startApifyRun('parseforge~ahrefs-tools-scraper', {
           searchType: 'domain',
@@ -78,15 +77,12 @@ export async function POST(req: NextRequest) {
           brand,
           brandUrl: domain,
           category,
-          competitors,
-          language: 'sg',
-          queries: generateQueries(brand, category),
-          includePerception: true,
+          competitors: competitors,
         }),
-        ...competitors.map((comp: string) =>
+        ...resolvedCompetitorDomains.map((compDomain: string) =>
           startApifyRun('parseforge~ahrefs-tools-scraper', {
             searchType: 'domain',
-            domains: [comp.toLowerCase().replace(/\s+/g, '') + '.com'],
+            domains: [compDomain],
           })
         ),
       ])
@@ -97,7 +93,6 @@ export async function POST(req: NextRequest) {
       state.status = { phase: 'seo', progress: 10 }
       runs.set(auditId, state)
 
-      // Import polling and parsing functions
       const { pollApifyRun } = await import('@/lib/apify')
       const { parseSEOData, parseAIData, parseBenchmark, parseCompetitorSEO, runTechnicalChecks } = await import('@/lib/parsers')
 
@@ -123,11 +118,12 @@ export async function POST(req: NextRequest) {
       const benchmark = parseBenchmark(aiItems.value, brand, domain, competitors)
 
       const parsedCompetitors = competitors.map((comp: string, i: number) => {
-        const items = competitorSeoItems[i]?.status === 'fulfilled' ? competitorSeoItems[i].value as unknown[] : []
+        const items = competitorSeoItems[i]?.status === 'fulfilled' ? (competitorSeoItems[i] as PromiseFulfilledResult<unknown[]>).value : []
         const compAI = benchmark.find(b => b.name.toLowerCase() === comp.toLowerCase())
         return parseCompetitorSEO(
           items,
           comp,
+          resolvedCompetitorDomains[i],
           compAI?.visibility || 0,
           compAI ? String(compAI.firstMentionShare) + '%' : '0%'
         )

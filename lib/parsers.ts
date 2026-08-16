@@ -4,21 +4,32 @@ export function extractDomain(url: string): string {
   return url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '').split('/')[0]
 }
 
+// Handle both camelCase and snake_case field names from the Ahrefs actor
+function pick(item: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (item[key] !== undefined && item[key] !== null) return item[key]
+  }
+  return undefined
+}
+
 export function parseSEOData(items: unknown[], technical: { label: string; status: 'ok' | 'fail' }[]): SEOData {
   const item = (Array.isArray(items) && items[0]) ? items[0] as Record<string, unknown> : {}
-  const backlinks = Number(item.backlinks) || 0
-  const dofollowBacklinks = Number(item.dofollowBacklinks) || 0
+
+  const backlinks = Number(pick(item, 'backlinks', 'total_backlinks', 'totalBacklinks')) || 0
+  const dofollowBacklinks = Number(pick(item, 'dofollowBacklinks', 'dofollow_backlinks', 'doFollowBacklinks')) || 0
   const dofollowPct = backlinks > 0 ? Math.round((dofollowBacklinks / backlinks) * 100) + '%' : '0%'
 
+  const topPages = (pick(item, 'topPages', 'top_pages') as { path: string; traffic: number; keywords: number }[]) || []
+
   return {
-    domainRating: Number(item.domainRating) || 0,
-    urlRating: Number(item.urlRating) || 0,
+    domainRating: Number(pick(item, 'domainRating', 'domain_rating', 'dr')) || 0,
+    urlRating: Number(pick(item, 'urlRating', 'url_rating', 'ur')) || 0,
     backlinks,
-    referringDomains: Number(item.referringDomains) || 0,
+    referringDomains: Number(pick(item, 'referringDomains', 'referring_domains', 'refdomains')) || 0,
     dofollowPct,
-    organicKeywords: Number(item.organicKeywords) || 0,
-    estimatedTraffic: Number(item.organicTraffic) || 0,
-    topPages: (item.topPages as { path: string; traffic: number; keywords: number }[]) || [],
+    organicKeywords: Number(pick(item, 'organicKeywords', 'organic_keywords', 'keywords')) || 0,
+    estimatedTraffic: Number(pick(item, 'organicTraffic', 'organic_traffic', 'traffic')) || 0,
+    topPages,
     technical,
   }
 }
@@ -28,7 +39,6 @@ export function parseAIData(items: unknown[], brand: string): AIData {
   const summary = (result.summary as Record<string, unknown>) || {}
   const perPlatform = (result.per_platform_per_brand as Record<string, unknown>[]) || []
   const perQuery = (result.per_query as Record<string, unknown>[]) || []
-  const competitorsRaw = (result.competitors as Record<string, unknown>[]) || []
 
   const brandPlatforms = perPlatform.filter(p => {
     const pBrand = String(p.brand || '').toLowerCase()
@@ -56,7 +66,7 @@ export function parseAIData(items: unknown[], brand: string): AIData {
     }
   }).filter(e => e.queries.length > 0 || e.ais > 0)
 
-  const allAppearances = perQuery.filter(q => {
+  const allFirstMentions = perQuery.filter(q => {
     const pBrand = String(q.brand || '').toLowerCase()
     return pBrand === brand.toLowerCase() && Number(q.position) === 1
   })
@@ -65,7 +75,7 @@ export function parseAIData(items: unknown[], brand: string): AIData {
     return pBrand === brand.toLowerCase() && Boolean(q.appears)
   })
   const firstMentionShare = totalAppearances.length > 0
-    ? Math.round((allAppearances.length / totalAppearances.length) * 100) + '%'
+    ? Math.round((allFirstMentions.length / totalAppearances.length) * 100) + '%'
     : (Number(summary.top3_rate_pct) || 0) + '%'
 
   return {
@@ -90,17 +100,17 @@ export function parseAIData(items: unknown[], brand: string): AIData {
 export function parseBenchmark(aiItems: unknown[], brand: string, brandDomain: string, competitors: string[]): BenchmarkEntry[] {
   const result = (Array.isArray(aiItems) && aiItems[0]) ? aiItems[0] as Record<string, unknown> : {}
   const competitorsRaw = (result.competitors as Record<string, unknown>[]) || []
+  const summary = (result.summary as Record<string, unknown>) || {}
 
   const entries: BenchmarkEntry[] = []
 
-  const brandSummary = (result.summary as Record<string, unknown>) || {}
   entries.push({
     rank: 1,
     name: brand,
     domain: brandDomain,
-    mentions: Number(brandSummary.mentions) || 0,
-    visibility: Number(brandSummary.mention_rate) || 0,
-    firstMentionShare: Number(brandSummary.top3_rate_pct) || 0,
+    mentions: Number(summary.mentions) || 0,
+    visibility: Number(summary.mention_rate) || 0,
+    firstMentionShare: Number(summary.top3_rate_pct) || 0,
     sentiment: 'neutral',
     isTarget: true,
     isCompetitor: false,
@@ -123,19 +133,16 @@ export function parseBenchmark(aiItems: unknown[], brand: string, brandDomain: s
   return entries.sort((a, b) => b.visibility - a.visibility).map((e, i) => ({ ...e, rank: i + 1 }))
 }
 
-export function parseCompetitorSEO(seoItems: unknown[], name: string, aiScore: number, firstMentionShare: string): CompetitorSEO {
+export function parseCompetitorSEO(seoItems: unknown[], name: string, domain: string, aiScore: number, firstMentionShare: string): CompetitorSEO {
   const item = (Array.isArray(seoItems) && seoItems[0]) ? seoItems[0] as Record<string, unknown> : {}
-  const domain = String(item.domain || name)
-  const backlinks = Number(item.backlinks) || 0
-  const dofollowBacklinks = Number(item.dofollowBacklinks) || 0
-  const dofollowPct = backlinks > 0 ? Math.round((dofollowBacklinks / backlinks) * 100) + '%' : '0%'
+  const backlinks = Number(pick(item, 'backlinks', 'total_backlinks', 'totalBacklinks')) || 0
 
   return {
     name,
     domain,
-    domainRating: Number(item.domainRating) || 0,
+    domainRating: Number(pick(item, 'domainRating', 'domain_rating', 'dr')) || 0,
     backlinks,
-    organicKeywords: Number(item.organicKeywords) || 0,
+    organicKeywords: Number(pick(item, 'organicKeywords', 'organic_keywords', 'keywords')) || 0,
     aiScore,
     firstMentionShare,
   }
@@ -148,20 +155,13 @@ export async function runTechnicalChecks(url: string): Promise<{ label: string; 
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) })
     const html = await res.text()
 
-    const titleMatch = /<title[^>]*>(.+?)<\/title>/i.test(html)
-    const metaDescMatch = /<meta[^>]+name=["']description["'][^>]*>/i.test(html)
-    const canonicalMatch = /<link[^>]+rel=["']canonical["'][^>]*>/i.test(html)
-    const h1Match = /<h1[\s>]/i.test(html)
-    const schemaMatch = /application\/ld\+json/i.test(html)
-    const ogMatch = /<meta[^>]+property=["']og:title["'][^>]*>/i.test(html)
-
     checks.push(
-      { label: 'Title tag', status: titleMatch ? 'ok' : 'fail' },
-      { label: 'Meta description', status: metaDescMatch ? 'ok' : 'fail' },
-      { label: 'Canonical tag', status: canonicalMatch ? 'ok' : 'fail' },
-      { label: 'H1 present', status: h1Match ? 'ok' : 'fail' },
-      { label: 'Schema markup', status: schemaMatch ? 'ok' : 'fail' },
-      { label: 'Open Graph tags', status: ogMatch ? 'ok' : 'fail' },
+      { label: 'Title tag', status: /<title[^>]*>(.+?)<\/title>/i.test(html) ? 'ok' : 'fail' },
+      { label: 'Meta description', status: /<meta[^>]+name=["']description["'][^>]*>/i.test(html) ? 'ok' : 'fail' },
+      { label: 'Canonical tag', status: /<link[^>]+rel=["']canonical["'][^>]*>/i.test(html) ? 'ok' : 'fail' },
+      { label: 'H1 present', status: /<h1[\s>]/i.test(html) ? 'ok' : 'fail' },
+      { label: 'Schema markup', status: /application\/ld\+json/i.test(html) ? 'ok' : 'fail' },
+      { label: 'Open Graph tags', status: /<meta[^>]+property=["']og:title["'][^>]*>/i.test(html) ? 'ok' : 'fail' },
     )
   } catch {
     checks.push(
@@ -175,17 +175,16 @@ export async function runTechnicalChecks(url: string): Promise<{ label: string; 
   }
 
   const origin = new URL(url).origin
-
   try {
-    const robotsRes = await fetch(`${origin}/robots.txt`, { signal: AbortSignal.timeout(5000) })
-    checks.push({ label: 'robots.txt', status: robotsRes.ok ? 'ok' : 'fail' })
+    const r = await fetch(`${origin}/robots.txt`, { signal: AbortSignal.timeout(5000) })
+    checks.push({ label: 'robots.txt', status: r.ok ? 'ok' : 'fail' })
   } catch {
     checks.push({ label: 'robots.txt', status: 'fail' })
   }
 
   try {
-    const sitemapRes = await fetch(`${origin}/sitemap.xml`, { signal: AbortSignal.timeout(5000) })
-    checks.push({ label: 'sitemap.xml', status: sitemapRes.ok ? 'ok' : 'fail' })
+    const r = await fetch(`${origin}/sitemap.xml`, { signal: AbortSignal.timeout(5000) })
+    checks.push({ label: 'sitemap.xml', status: r.ok ? 'ok' : 'fail' })
   } catch {
     checks.push({ label: 'sitemap.xml', status: 'fail' })
   }
