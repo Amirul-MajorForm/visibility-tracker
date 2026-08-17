@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 interface InputFormProps {
-  onSubmit: (data: { brand: string; category: string; url: string; competitors: string[]; competitorDomains: string[] }) => void
+  onSubmit: (data: { brand: string; category: string; url: string }) => void
   loading?: boolean
 }
 
@@ -11,19 +11,11 @@ export default function InputForm({ onSubmit, loading }: InputFormProps) {
   const [brand, setBrand] = useState('')
   const [category, setCategory] = useState('')
   const [url, setUrl] = useState('')
-  const [comp1Name, setComp1Name] = useState('')
-  const [comp1Domain, setComp1Domain] = useState('')
-  const [comp2Name, setComp2Name] = useState('')
-  const [comp2Domain, setComp2Domain] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const normalised = url.startsWith('http') ? url : `https://${url}`
-    const competitors = [comp1Name, comp2Name].filter(Boolean)
-    const competitorDomains = [comp1Domain, comp2Domain].filter(Boolean).map(d =>
-      d.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '')
-    )
-    onSubmit({ brand, category, url: normalised, competitors, competitorDomains })
+    onSubmit({ brand, category, url: normalised })
   }
 
   return (
@@ -64,43 +56,6 @@ export default function InputForm({ onSubmit, loading }: InputFormProps) {
             placeholder="e.g. oatside.com or https://oatside.com"
             required
           />
-        </div>
-
-        <div style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 8,
-          padding: '20px 24px',
-        }}>
-          <div className="section-label" style={{ marginBottom: 4 }}>Competitors (optional · max 2)</div>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-            Enter the brand name and their website domain for accurate SEO comparison.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {[
-              { name: comp1Name, setName: setComp1Name, domain: comp1Domain, setDomain: setComp1Domain, n: 1 },
-              { name: comp2Name, setName: setComp2Name, domain: comp2Domain, setDomain: setComp2Domain, n: 2 },
-            ].map(({ name, setName, domain, setDomain, n }) => (
-              <div key={n} style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>Brand name</div>
-                  <input
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder={`e.g. ${n === 1 ? 'Oatly' : 'Minor Figures'}`}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>Domain</div>
-                  <input
-                    value={domain}
-                    onChange={e => setDomain(e.target.value)}
-                    placeholder={`e.g. ${n === 1 ? 'oatly.com' : 'minorfigures.com'}`}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <button

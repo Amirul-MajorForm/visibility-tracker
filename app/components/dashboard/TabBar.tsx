@@ -4,17 +4,15 @@ const TABS = [
   { id: 'seo', label: 'SEO' },
   { id: 'ai', label: 'AI Visibility' },
   { id: 'benchmark', label: 'Category Benchmark' },
-  { id: 'competitors', label: 'Competitors' },
   { id: 'strategy', label: 'Query Ladder' },
 ]
 
 interface TabBarProps {
   active: string
   onChange: (tab: string) => void
-  hasCompetitors: boolean
 }
 
-export default function TabBar({ active, onChange, hasCompetitors }: TabBarProps) {
+export default function TabBar({ active, onChange }: TabBarProps) {
   return (
     <div style={{
       background: 'var(--surface)',
@@ -26,7 +24,6 @@ export default function TabBar({ active, onChange, hasCompetitors }: TabBarProps
     }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', width: '100%' }}>
         {TABS.map(tab => {
-          if (tab.id === 'competitors' && !hasCompetitors) return null
           const isActive = active === tab.id
           return (
             <button
