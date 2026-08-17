@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       const [seoRunId, aiRunId] = await Promise.all([
         startApifyRun('parseforge~ahrefs-tools-scraper', {
           target: domain,
-          tool: 'domain_rating',
+          tool: 'website-authority-checker',
         }),
         startApifyRun('doesaiknow~ai-brand-visibility-tracker-chatgpt-perplexity-gemini', {
           brand,
